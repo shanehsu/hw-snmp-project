@@ -1,0 +1,22 @@
+{
+  "name": "snmp",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "dependencies": {
+    "@types/body-parser": "0.0.33",
+    "@types/express": "^4.0.34",
+    "arp-a": "^0.5.1",
+    "body-parser": "^1.15.2",
+    "express": "^4.14.0",
+    "iconv-lite": "^0.4.15",
+    "net-snmp": "^1.1.19"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node --harmony dist/index.js"
+  },
+  "author": "",
+  "license": "ISC"
+}

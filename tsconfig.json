@@ -1,0 +1,19 @@
+{
+    "compilerOptions": {
+        "module": "commonjs",
+        "noImplicitAny": true,
+        "removeComments": true,
+        "preserveConstEnums": true,
+        "outDir": "dist",
+        "sourceMap": true,
+        "target": "es2015",
+        "lib": [
+            "es2015",
+            "es2016.array.include",
+            "es2017.object"
+        ]
+    },
+    "exclude": [
+        "node_modules"
+    ]
+}
