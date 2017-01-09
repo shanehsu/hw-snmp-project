@@ -27,8 +27,8 @@ import bodyparser = require('body-parser')
 // "1.3.6.1.2.1.2.2.1.16" - The number of sent octets of the interface
 
 // let oids = [
-//   "1.3.6.1.2.1.2.1.0",
-//   ""
+//   "1.3.6.1.2.1.2.1.0" // name
+//   "1.3.6.1.2.1.1.6.0" // location
 // ]
 // snmp.get(oids[0]).then(console.dir).catch(console.error)
 
@@ -91,8 +91,10 @@ class InterfaceStatistics {
 
 let interfaces: { [name: string]: InterfaceStatistics } = {}
 
-// let snmp = new SNMP('10.0.0.1', 'public')
-let snmp = new SNMP('192.168.1.254', 'public')
+let snmp = new SNMP('10.0.0.1', 'public')
+// let snmp = new SNMP('192.168.1.254', 'public')
+
+// snmp.table("1.3.6.1.2.1.4.22").then(console.dir).catch(console.error)
 
 async function getInterface() {
   try {
@@ -105,9 +107,9 @@ async function getInterface() {
       let sent = data["16"]
 
       if (!interfaces[name]) {
-        interfaces[name] = new InterfaceStatistics(name, speed, status, received, sent)
+        interfaces[name] = new InterfaceStatistics(name, speed as number, status as number, received as number, sent as number)
       } else {
-        interfaces[name].update(received, sent, speed, status)
+        interfaces[name].update(received as number, sent as number, speed as number, status as number)
       }
     }
   } catch (err) {
@@ -115,10 +117,9 @@ async function getInterface() {
     console.error(err)
   }
 
-  setTimeout(getInterface, 125)
+  setTimeout(getInterface, 50)
 }
-
-setTimeout(getInterface, 125)
+setTimeout(getInterface, 50)
 
 let app = express()
 app.use(bodyparser.json())
@@ -134,6 +135,32 @@ app.get('/interfaces', (req, res, next) => {
     }
   }))
 })
+app.get('/uptime', async (req, res, next) => {
+  try {
+    res.send(((await snmp.get('1.3.6.1.2.1.1.3.0') as number) / 100).toString())
+  } catch (err) {
+    next(err)
+  }
+})
+app.get('/system', async (req, res, next) => {
+  try {
+    let model = await snmp.get('1.3.6.1.2.1.1.1.0')
+    let name = await snmp.get('1.3.6.1.2.1.1.5.0')
+    let location = await snmp.get('1.3.6.1.2.1.1.6.0')
+    let contact = await snmp.get('1.3.6.1.2.1.1.4.0')
+
+    res.json({
+      name: name,
+      model: model,
+      location: location,
+      contatct: contact
+    })
+  } catch (err) {
+    next(err)
+  }
+})
+
+
 app.use((err: Error, req: express.Request, res: express.Response, next: express.NextFunction) => {
   res.status(500).send(err.message ? err.message : `${JSON.stringify(err)}`)
 })
