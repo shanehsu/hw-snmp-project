@@ -25,7 +25,30 @@ export async function GetArpTable(encoding: string = 'utf8') {
   // macOS
   if (os.type().toLowerCase() == 'darwin') {
     return new Promise<ArpEntry[]>((resolve, reject) => {
+      let stderr = ''
+      let stdout = '? (172.20.10.1) at ba:53:ac:83:2d:64 on en0 ifscope [ethernet]\n? (172.20.10.15) at (incomplete) on en0 ifscope [ethernet]\n? (224.0.0.251) at 1:0:5e:0:0:fb on en0 ifscope permanent [ethernet]\nbroadcasthost (255.255.255.255) at (incomplete) on en0 ifscope [ethernet]\n'
 
+      /*
+      // 使用 iconv 解碼，所以將 encoding 設為 null
+      let proc = process.exec('arp -a', { encoding: null })
+      proc.stdin.end()
+
+      // 因為 encoding 被設為 null，所以 data 必為 Buffer
+      proc.stdout.on('data', (data: Buffer) => stdout += iconv.decode(data, 'utf8'))
+      proc.stderr.on('data', (data: Buffer) => stderr += iconv.decode(data, 'utf8'))
+
+      proc.on('close', exitCode => {
+        if (exitCode != 0) {
+          reject(new Error(`程序回傳碼：${exitCode}`))
+          return
+        }
+
+        resolve([])
+      })
+      */
+
+      let lines = stdout.split('\n').slice(0, -1)
+      console.dir(lines)
     })
   }
 
@@ -84,3 +107,5 @@ export async function GetArpTable(encoding: string = 'utf8') {
     })
   })
 }
+
+GetArpTable()
