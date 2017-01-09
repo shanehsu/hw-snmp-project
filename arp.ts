@@ -50,7 +50,7 @@ export async function GetArpTable(encoding: string = 'utf8') {
         for (let record of parts) {
           if (record[3].length == 17 && record[1].slice(1, -1).match(kIpAddressRegexFull)) {
             // invalid MAC or IP address
-            let mac = record[3]
+            let mac = record[3].toUpperCase()
             let ip = record[1].slice(1, -1)
             let type: ArpType = record.includes('permanent') ? 'static' : 'dynamic'
 
@@ -112,7 +112,7 @@ export async function GetArpTable(encoding: string = 'utf8') {
           let columns = trimmed.split(' ')
           entries.push({
             ip: columns[0],
-            mac: columns[1],
+            mac: columns[1].replace(/-/g, ':').toUpperCase(),
             type: type(columns[2])
           })
         }
@@ -122,5 +122,3 @@ export async function GetArpTable(encoding: string = 'utf8') {
     })
   })
 }
-
-GetArpTable().then(console.dir).catch(console.error)

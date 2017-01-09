@@ -11,14 +11,16 @@ class InterfaceStatistics {
   name: string
   speed: number
   status: InterfaceStatus
+  setting: InterfaceStatus
   sampled: number[]
   received: number[]
   sent: number[]
 
-  constructor(name: string, speed: number, status: number, received: number, sent: number) {
+  constructor(name: string, speed: number, status: number, setting: number, received: number, sent: number) {
     this.name = name
     this.speed = speed
     this.status = status == 1 ? "UP" : status == 2 ? "DOWN" : "TESTING"
+    this.setting = setting == 1 ? "UP" : setting == 2 ? "DOWN" : "TESTING"
     this.sampled = [Date.now()]
     this.received = [received]
     this.sent = [sent]
@@ -43,7 +45,7 @@ class InterfaceStatistics {
 
     return sentDelta / timeDelta
   }
-  public update(received: number, sent: number, speed: number, status: number) {
+  public update(received: number, sent: number, speed: number, status: number, setting: number) {
     if (this.sampled.length == InterfaceStatistics.SAMPLES) {
       this.sampled.push(Date.now())
       this.received.push(received)
@@ -60,6 +62,7 @@ class InterfaceStatistics {
 
     this.speed = speed
     this.status = status == 1 ? "UP" : status == 2 ? "DOWN" : "TESTING"
+    this.setting = setting == 1 ? "UP" : setting == 2 ? "DOWN" : "TESTING"
   }
 }
 
@@ -70,18 +73,19 @@ let snmp = new SNMP('192.168.1.254', 'public')
 
 async function getInterface() {
   try {
-    let table = await snmp.table("1.3.6.1.2.1.2.2", [2, 5, 8, 10, 16])
+    let table = await snmp.table("1.3.6.1.2.1.2.2", [2, 5, 7, 8, 10, 16])
     for (let [index, data] of Object.entries(table)) {
       let name = data["2"].toString()
       let speed = data["5"]
+      let setting = data["7"]
       let status = data["8"]
       let received = data["10"]
       let sent = data["16"]
 
       if (!interfaces[name]) {
-        interfaces[name] = new InterfaceStatistics(name, speed as number, status as number, received as number, sent as number)
+        interfaces[name] = new InterfaceStatistics(name, speed as number, status as number, setting as number, received as number, sent as number)
       } else {
-        interfaces[name].update(received as number, sent as number, speed as number, status as number)
+        interfaces[name].update(received as number, sent as number, speed as number, status as number, setting as number)
       }
     }
   } catch (err) {
@@ -104,6 +108,7 @@ app.get('/interfaces', (req, res, next) => {
       name: value.name,
       speed: value.speed,
       status: value.status,
+      settings: value.setting,
       down: value.down,
       up: value.up
     }
@@ -168,7 +173,11 @@ app.get('/connected', async (req, res, next) => {
   }
 })
 app.get('/arp', async (req, res, next) => {
-
+  try {
+    res.json(await GetArpTable('big5'))
+  } catch (err) {
+    next(err)
+  }
 })
 
 app.use((err: Error, req: express.Request, res: express.Response, next: express.NextFunction) => {
