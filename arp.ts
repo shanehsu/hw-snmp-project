@@ -1,11 +1,11 @@
 import process = require('child_process')
 import iconv = require('iconv-lite')
+import os = require('os')
 
 let kIpAddressRegex = /(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)/
 
 export type ArpType = 'static' | 'dynamic' | 'unknown'
 export type ArpEntry = { ip: string, mac: string, type: ArpType }
-export type ArpTable = { [ip: string]: ArpEntry[] }
 
 function type(typeString: string): ArpType {
   let kStatic = ['static', '靜態']
@@ -21,8 +21,16 @@ function type(typeString: string): ArpType {
  *          物件鍵值為主機介面卡 IP，值為物件陣列
  *          每個物件由 ip, mac, type 三個鍵值組成
  */
-export async function GetArpTable(encoding: string = 'utf8'): Promise<ArpTable> {
-  return new Promise<ArpTable>((resolve, reject) => {
+export async function GetArpTable(encoding: string = 'utf8') {
+  // macOS
+  if (os.type().toLowerCase() == 'darwin') {
+    return new Promise<ArpEntry[]>((resolve, reject) => {
+
+    })
+  }
+
+  // Windows
+  return new Promise<ArpEntry[]>((resolve, reject) => {
     let stderr = ''
     let stdout = ''
 
@@ -58,17 +66,13 @@ export async function GetArpTable(encoding: string = 'utf8'): Promise<ArpTable> 
       // 因為多一個空行，把多的移除
       interfaces.pop()
 
-      let table: ArpTable = {}
+      let entries: ArpEntry[] = []
       for (let _interface of interfaces) {
-        let adapterIp = _interface[0].match(kIpAddressRegex)[0]
-        table[adapterIp] = []
-        let entry = table[adapterIp]
-
         for (let i = 2; i < _interface.length; i++) {
           let record = _interface[i]
           let trimmed = record.trim().replace(/\s+/g, ' ')
           let columns = trimmed.split(' ')
-          entry.push({
+          entries.push({
             ip: columns[0],
             mac: columns[1],
             type: type(columns[2])
@@ -76,7 +80,7 @@ export async function GetArpTable(encoding: string = 'utf8'): Promise<ArpTable> 
         }
       }
 
-      resolve(table)
+      resolve(entries)
     })
   })
 }

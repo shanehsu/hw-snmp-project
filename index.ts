@@ -4,36 +4,10 @@ import { SNMP } from './snmp'
 import express = require('express')
 import bodyparser = require('body-parser')
 
-// GetArpTable('big5').then(table => {
-//   for (let _interface of Object.entries(table)) {
-//     let interfaceIp = _interface[0]
-//     let entries = _interface[1]
-
-//     console.log(`介面卡：${interfaceIp}`)
-//     for (let entry of entries) {
-//       console.log(`${entry.ip}\t\t${entry.mac}`)
-//     }
-
-//     console.log()
-//   }
-// }).catch(console.error)
-
-// "1.3.6.1.2.1.2.1.0" - The number of interfaces
-// "1.3.6.1.2.1.2.2.1.2" - The name of the interface
-// "1.3.6.1.2.1.2.2.1.5" - The negotiated speed of the interface
-// "1.3.6.1.2.1.2.2.1.8" - The status of the interface
-//                       -> 1 - up; 2 - down; 3 - testing
-// "1.3.6.1.2.1.2.2.1.10" - The number of received octets of the interface
-// "1.3.6.1.2.1.2.2.1.16" - The number of sent octets of the interface
-
-// let oids = [
-//   "1.3.6.1.2.1.2.1.0" // name
-//   "1.3.6.1.2.1.1.6.0" // location
-// ]
-// snmp.get(oids[0]).then(console.dir).catch(console.error)
-
 type InterfaceStatus = "UP" | "DOWN" | "TESTING"
 class InterfaceStatistics {
+  static SAMPLES = 20
+
   name: string
   speed: number
   status: InterfaceStatus
@@ -50,27 +24,27 @@ class InterfaceStatistics {
     this.sent = [sent]
   }
   get down(): number {
-    if (this.received.length < 9) {
+    if (this.received.length < InterfaceStatistics.SAMPLES) {
       return -1.0
     }
 
-    let timeDelta = (this.sampled[8] - this.sampled[0]) / 1000.0
-    let receivedDelta = this.received[8] - this.received[0]
+    let timeDelta = (this.sampled[InterfaceStatistics.SAMPLES - 1] - this.sampled[0]) / 1000.0
+    let receivedDelta = this.received[InterfaceStatistics.SAMPLES - 1] - this.received[0]
 
     return receivedDelta / timeDelta
   }
   get up(): number {
-    if (this.sent.length < 9) {
+    if (this.sent.length < InterfaceStatistics.SAMPLES) {
       return -1.0
     }
 
-    let timeDelta = (this.sampled[8] - this.sampled[0]) / 1000.0
-    let sentDelta = this.sent[8] - this.sent[0]
+    let timeDelta = (this.sampled[InterfaceStatistics.SAMPLES - 1] - this.sampled[0]) / 1000.0
+    let sentDelta = this.sent[InterfaceStatistics.SAMPLES - 1] - this.sent[0]
 
     return sentDelta / timeDelta
   }
   public update(received: number, sent: number, speed: number, status: number) {
-    if (this.sampled.length == 9) {
+    if (this.sampled.length == InterfaceStatistics.SAMPLES) {
       this.sampled.push(Date.now())
       this.received.push(received)
       this.sent.push(sent)
@@ -91,10 +65,8 @@ class InterfaceStatistics {
 
 let interfaces: { [name: string]: InterfaceStatistics } = {}
 
-let snmp = new SNMP('10.0.0.1', 'public')
-// let snmp = new SNMP('192.168.1.254', 'public')
-
-// snmp.table("1.3.6.1.2.1.4.22").then(console.dir).catch(console.error)
+// let snmp = new SNMP('10.0.0.1', 'public')
+let snmp = new SNMP('192.168.1.254', 'public')
 
 async function getInterface() {
   try {
@@ -119,7 +91,9 @@ async function getInterface() {
 
   setTimeout(getInterface, 50)
 }
-setTimeout(getInterface, 50)
+
+// 開始取得介面資訊
+getInterface()
 
 let app = express()
 app.use(bodyparser.json())
@@ -134,6 +108,9 @@ app.get('/interfaces', (req, res, next) => {
       up: value.up
     }
   }))
+})
+app.get('/interfaces/samples', (req, res, next) => {
+  res.json(Object.entries(interfaces).map(([name, value]) => value))
 })
 app.get('/uptime', async (req, res, next) => {
   try {
@@ -159,7 +136,40 @@ app.get('/system', async (req, res, next) => {
     next(err)
   }
 })
+app.get('/connected', async (req, res, next) => {
+  enum StatusMap {
+    "OTHER" = 1,
+    "INVALID" = 2,
+    "LEARNED" = 3,
+    "SELF" = 4,
+    "MGMT" = 5
+  }
+  try {
+    let macTable = await snmp.table('1.3.6.1.2.1.17.4.3') as { [oid: string]: { 1: Buffer, 2: number, 3: StatusMap | number } }
+    let result = Object.entries(macTable).map(([_, value]) => {
+      let macAddress = value['1'].toString('hex').toUpperCase().match(/.{2}/g).reduce((addr, part) => `${addr}:${part}`, "").slice(1)
+      let port = value['2']
+      let status = value['3'] == 1 ? "OTHER" :
+        value['3'] == 2 ? "INVALID" :
+          value['3'] == 3 ? 'LEARNED' :
+            value['3'] == 4 ? "SELF" : "MGMT"
 
+      return {
+        mac_address: macAddress,
+        port: port,
+        status: status
+      }
+    })
+
+    res.json(result)
+  } catch (err) {
+    next(err)
+    return
+  }
+})
+app.get('/arp', async (req, res, next) => {
+
+})
 
 app.use((err: Error, req: express.Request, res: express.Response, next: express.NextFunction) => {
   res.status(500).send(err.message ? err.message : `${JSON.stringify(err)}`)
