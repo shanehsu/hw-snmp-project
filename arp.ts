@@ -3,6 +3,7 @@ import iconv = require('iconv-lite')
 import os = require('os')
 
 let kIpAddressRegex = /(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)/
+let kIpAddressRegexFull = /^(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/
 
 export type ArpType = 'static' | 'dynamic' | 'unknown'
 export type ArpEntry = { ip: string, mac: string, type: ArpType }
@@ -26,9 +27,8 @@ export async function GetArpTable(encoding: string = 'utf8') {
   if (os.type().toLowerCase() == 'darwin') {
     return new Promise<ArpEntry[]>((resolve, reject) => {
       let stderr = ''
-      let stdout = '? (172.20.10.1) at ba:53:ac:83:2d:64 on en0 ifscope [ethernet]\n? (172.20.10.15) at (incomplete) on en0 ifscope [ethernet]\n? (224.0.0.251) at 1:0:5e:0:0:fb on en0 ifscope permanent [ethernet]\nbroadcasthost (255.255.255.255) at (incomplete) on en0 ifscope [ethernet]\n'
+      let stdout = ''
 
-      /*
       // 使用 iconv 解碼，所以將 encoding 設為 null
       let proc = process.exec('arp -a', { encoding: null })
       proc.stdin.end()
@@ -43,12 +43,27 @@ export async function GetArpTable(encoding: string = 'utf8') {
           return
         }
 
-        resolve([])
-      })
-      */
+        let parts = stdout.split('\n').slice(0, -1).map(line => line.split(' '))
+        let entries: ArpEntry[] = []
 
-      let lines = stdout.split('\n').slice(0, -1)
-      console.dir(lines)
+        console.dir(parts)
+        for (let record of parts) {
+          if (record[3].length == 17 && record[1].slice(1, -1).match(kIpAddressRegexFull)) {
+            // invalid MAC or IP address
+            let mac = record[3]
+            let ip = record[1].slice(1, -1)
+            let type: ArpType = record.includes('permanent') ? 'static' : 'dynamic'
+
+            entries.push({
+              ip: ip,
+              mac: mac,
+              type: type
+            })
+          }
+        }
+
+        resolve(entries)
+      })
     })
   }
 
@@ -108,4 +123,4 @@ export async function GetArpTable(encoding: string = 'utf8') {
   })
 }
 
-GetArpTable()
+GetArpTable().then(console.dir).catch(console.error)
