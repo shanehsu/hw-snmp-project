@@ -27,7 +27,233 @@
     a.item {
       font-family: 'cwTeXHei', serif;
     }
+
+    table { 
+      table-layout: fixed; 
+      width: 100%; 
+    }
+
+    td, th {
+    width: 1px;
+    height: 30px;
+    white-space: nowrap;
+    word-break:  keep-all;
+    text-align: center;
+    }
   </style>
+  <script>
+  function setPort(){
+    $.ajax({
+      url: `http://localhost:3000/interfaces/${document.getElementsByName('port')[0].value}/setting`,
+      type: 'POST',
+      contentType: 'text/plain',
+      dataType: 'text',
+      data: document.getElementsByName('set')[0].value,
+      success: function(res){
+        alert("Update success");
+      }
+    });
+  }
+
+  function setContract(){
+    $.ajax({
+      url: 'http://localhost:3000/system/contact',
+      type: 'POST',
+      contentType: 'text/plain',
+      dataType: 'text',
+      data: document.getElementsByName('contact')[0].value,
+      success: function(res){
+        alert("Update success");
+      }
+    });
+  }
+
+  function setLocation(){
+    $.ajax({
+      url: 'http://localhost:3000/system/location',
+      type: 'POST',
+      contentType: 'text/plain',
+      dataType: 'text',
+      data: document.getElementsByName('location')[0].value,
+      success: function(res){
+        alert("Update success");
+      }
+    });
+  }
+
+  function setName(){
+    $.ajax({
+      url: 'http://localhost:3000/system/name',
+      type: 'POST',
+      contentType: 'text/plain',
+      dataType: 'text',
+      data: document.getElementsByName('name')[0].value,
+      success: function(res){
+        alert("Update success");
+      }
+    });
+  }
+
+  function setSystem(){
+    var output = `<table><tr><td>名稱</td><td><input type="text" name="name"></td><td><button type="button" onclick="setName()">更新</button></td></tr>
+                        <tr><td>位置</td><td><input type="text" name="location"></td><td><button type="button" onclick="setLocation()">更新</button></td></tr>
+                        <tr><td>聯絡方式</td><td><input type="text" name="contact"></td><td><button type="button" onclick="setContract()">更新</button></td></tr></table>`
+    document.getElementById('show').innerHTML = output;
+  }
+
+  function setInterfaces(){
+    var output = `<table><tr><th>Port number</th><th>setting</th><th></th></tr>
+                        <tr><td><input type="text" name="port"></td><td><input type="text" name="set"></td><td><button type="button" onclick="setPort()">更新</button></td></tr></table>`
+    document.getElementById('show').innerHTML = output;
+  }
+
+  function setting(){
+    var output = `<table>
+        <tr id="system"><th onclick="setSystem()">系統</th></tr>
+        <tr id="interfaces"><th onclick="setInterfaces()">介面</th></tr></table>`;
+        document.getElementById('show').innerHTML = output;
+  }
+
+  function sort(prop, asc) {
+    people = people.sort(function(a, b) {
+        if (asc) {
+            return (a[prop] > b[prop]) ? 1 : ((a[prop] < b[prop]) ? -1 : 0);
+        } else {
+            return (b[prop] > a[prop]) ? 1 : ((b[prop] < a[prop]) ? -1 : 0);
+        }
+    });
+  }
+
+  function getConnected(){
+    $.ajax({
+      url: 'http://localhost:3000/connected',
+      dataType: 'json',
+      success: function(res){
+        res.sort('port', true);
+        var output = `<table>
+    <tr>
+        <th>MAC address</th>
+        <th>Port</th>
+        <th>狀態</th>
+    </tr>`;
+
+    for(var i=0;i<res.length;i++)
+      output += `<tr><td>${res[i].mac_address}</td><td>${res[i].port}</td><td>${res[i].status}</td></tr>`
+    output += `</table>`
+    document.getElementById('show').innerHTML = output;  
+    }
+    });
+  }
+
+  function getArp(){
+    $.ajax({
+      url: 'http://localhost:3000/arp',
+      dataType: 'json',
+      success: function(res){
+        var output = `<table>
+    <tr>
+        <th>IP</th>
+        <th>MAC</th>
+        <th>屬性</th>
+    </tr>`;
+      for(var i=0;i<res.length;i++)
+        output += `<tr><td>${res[i].ip}</td><td>${res[i].mac}</td><td>${res[i].type}</td></tr>`
+
+      output += `</table>`
+      document.getElementById('show').innerHTML = output;
+      }
+    });
+  }
+
+  function getInterfaces(){
+    $.ajax({
+      url: 'http://localhost:3000/interfaces',
+      dataType: 'json',
+      success: function(res){
+        var output = `<table>
+    <tr>
+        <th>名稱</th>
+        <th>狀態</th>
+        <th>設定</th>
+        <th>速度</th>
+        <th>瞬時流量(up)</th>
+        <th>瞬時流量(down)</th>
+    </tr>`;
+
+      for(var i=0;i<res.length;i++)
+        output += `<tr><td>${res[i].name}</td><td>${res[i].status}</td><td>${res[i].settings}</td>
+            <td>${res[i].speed/1000000}Mbps</td><td>${(res[i].up/1000000).toFixed(3)}Mbps</td><td>${(res[i].down/1000000).toFixed(3)}Mbps</td></tr>`;
+      
+      output += `</table>`;
+
+      document.getElementById('show').innerHTML = output;
+      },
+
+      error: function(xhr, ajaxOptions, thrownError){ 
+        alert(xhr.status); 
+        alert(thrownError); 
+        }
+    });
+  }
+
+  function getUptime(){
+    $.ajax({
+      url: 'http://localhost:3000/uptime',
+      dataType: 'text',
+      success: function(res){
+        var output = (parseInt(res)/3600).toFixed(0) + "時"
+        output += (parseInt(res)%3600/60).toFixed(0) + "分"
+        output += parseInt(res)%60 + "秒"
+         document.getElementById('time').innerHTML = output;
+      },
+
+      error:function(xhr, ajaxOptions, thrownError){ 
+             alert(xhr.status); 
+             alert(thrownError); 
+         }
+
+    });
+  }
+
+  function getSystem(){
+    $.ajax({
+      url: 'http://localhost:3000/system',
+      dataType: 'json',
+      
+       success: function(msg){ 
+          document.getElementById('show').innerHTML =`<table>
+          <tr>
+              <td>名稱</td>
+              <td>${msg.name}</td>
+          </tr>
+          <tr>
+              <td>型號</td>
+              <td>${msg.model}</td>
+          </tr>
+          <tr>
+              <td>上線時間</td>
+              <td id='time'></td>
+          </tr>
+          <tr>
+              <td>位置</td>
+              <td>${msg.location}</td>
+          </tr>
+          <tr>
+              <td>聯繫方式</td>
+              <td>${msg.contatct}</td>
+          </tr>
+      </table>`;
+       getUptime();
+        },
+
+         error:function(xhr, ajaxOptions, thrownError){ 
+             alert(xhr.status); 
+             alert(thrownError); 
+         }
+   });
+ }
+ window.onload = window.setInterval(getSystem, 1000);
+  </script>
 </head>
 
 <body>
@@ -36,10 +262,16 @@
       <div class="header item">
         網路設備管理
       </div>
-      <a class="active item">概觀</a>
-      <a class="item">介面</a>
-      <a class="item">設定</a>
+      <a class="item" onclick="for(var i=1; i<99; i++)window.clearInterval(i); window.setInterval(getSystem, 1000);">概觀</a>
+      <a class="item" onclick="for(var i=1; i<99; i++)window.clearInterval(i); window.setInterval(getInterfaces, 1000)">介面</a>
+      <a class="item" onclick="for(var i=1; i<99; i++)window.clearInterval(i); window.setInterval(getConnected, 1000)">周圍裝置表</a>
+      <a class="item" onclick="for(var i=1; i<99; i++)window.clearInterval(i); window.setInterval(getArp, 1000)">IP-MAC</a>
+      <a class="item" onclick="for(var i=1; i<99; i++)window.clearInterval(i); setting()">設定</a>
     </div>
+  </div>
+
+  <div id="show" style="margin: 0px auto; width: 600px;">
+
   </div>
 </body>
 
