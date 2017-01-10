@@ -1,5 +1,6 @@
 import { GetArpTable } from './arp'
 import { SNMP, ObjectType } from './snmp'
+import { corsHeader } from './middlewares'
 
 import express = require('express')
 import bodyparser = require('body-parser')
@@ -102,6 +103,7 @@ getInterface()
 let app = express()
 app.use(bodyparser.text())
 app.use(bodyparser.json())
+app.use(corsHeader)
 
 app.get('/interfaces', (req, res, next) => {
   res.json(Object.entries(interfaces).map(([name, value]) => {
