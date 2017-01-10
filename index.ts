@@ -1,5 +1,5 @@
 import { GetArpTable } from './arp'
-import { SNMP } from './snmp'
+import { SNMP, ObjectType } from './snmp'
 
 import express = require('express')
 import bodyparser = require('body-parser')
@@ -100,6 +100,7 @@ async function getInterface() {
 getInterface()
 
 let app = express()
+app.use(bodyparser.text())
 app.use(bodyparser.json())
 
 app.get('/interfaces', (req, res, next) => {
@@ -113,6 +114,23 @@ app.get('/interfaces', (req, res, next) => {
       up: value.up
     }
   }))
+})
+app.post('/interfaces/:index/setting', (req, res, next) => {
+  let index = +(req.params.index as string)
+  let setting = req.body.toString() as string
+
+  let newSetting = setting == 'UP' ? 1 :
+    setting == 'DOWN' ? 2 : setting == 'TESTING' ? 3 : -1
+  if (newSetting > 0) {
+    try {
+      snmp.set(`1.3.6.1.2.1.2.2.1.7.${index}`, newSetting, ObjectType.Integer)
+      res.status(201).send()
+    } catch (err) {
+      next(err)
+    }
+  } else {
+    res.status(500).send(`設定值必須為 UP, DOWN 或是 TESTING，得到 ${setting}`)
+  }
 })
 app.get('/interfaces/samples', (req, res, next) => {
   res.json(Object.entries(interfaces).map(([name, value]) => value))
@@ -137,6 +155,33 @@ app.get('/system', async (req, res, next) => {
       location: location,
       contatct: contact
     })
+  } catch (err) {
+    next(err)
+  }
+})
+app.post('/system/name', async (req, res, next) => {
+  let newName = req.body.toString() as string
+  try {
+    await snmp.set('1.3.6.1.2.1.1.5.0', newName, ObjectType.OctetString)
+    res.status(201).send()
+  } catch (err) {
+    next(err)
+  }
+})
+app.post('/system/location', async (req, res, next) => {
+  let newLocation = req.body.toString() as string
+  try {
+    await snmp.set('1.3.6.1.2.1.1.6.0', newLocation, ObjectType.OctetString)
+    res.status(201).send()
+  } catch (err) {
+    next(err)
+  }
+})
+app.post('/system/contact', async (req, res, next) => {
+  let newContact = req.body.toString() as string
+  try {
+    await snmp.set('1.3.6.1.2.1.1.4.0', newContact, ObjectType.OctetString)
+    res.status(201).send()
   } catch (err) {
     next(err)
   }
